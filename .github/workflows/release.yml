@@ -1,0 +1,43 @@
+# Releases, flux develop → main (mode tag) : à chaque merge sur
+# develop, préversion vX.Y.Z-next.N et demande de livraison
+# develop → main, qui publie le tag vX.Y.Z et la release.
+name: release
+
+on:
+  push:
+    branches: [main, develop]
+  workflow_dispatch: # à la main (et urgence) : préversion et demande de livraison
+
+# Une file par branche et par déclencheur ; une demande manuelle ou planifiée
+# remplace celle en attente ; un push n'annule jamais un run en cours
+concurrency:
+  group: release-${{ github.ref_name }}-${{ github.event.schedule || github.event_name }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
+
+permissions: {}
+
+jobs:
+  release:
+    uses: simdevWarden/repowarden/.github/workflows/release-auto.yml@v4
+    permissions: { contents: write, pull-requests: write, actions: write, checks: read, statuses: write, issues: read }
+    with:
+      mode: tag
+      integration-branch: develop
+      main-branch: main
+      preversion-on-push: true # préversion à chaque merge
+      delivery-on-push: true # demande de livraison à chaque merge
+      delivery-auto: true # la GitHub App merge la livraison, vérifications vertes
+      app-client-id: ${{ vars.REPOWARDEN_APP_CLIENT_ID }} # la GitHub App merge la livraison
+    secrets:
+      app-key: ${{ secrets.REPOWARDEN_APP_KEY }}
+
+  tickets:
+    needs: release
+    if: needs.release.outputs.release_created == 'true' || needs.release.outputs.prerelease_created == 'true'
+    uses: simdevWarden/repowarden/.github/workflows/tickets.yml@v4
+    permissions: { contents: write, issues: write, pull-requests: write, statuses: write }
+    with:
+      tag: ${{ needs.release.outputs.tag_name || needs.release.outputs.prerelease_tag }}
+      app-client-id: ${{ vars.REPOWARDEN_APP_CLIENT_ID }}
+    secrets:
+      app-key: ${{ secrets.REPOWARDEN_APP_KEY }}
