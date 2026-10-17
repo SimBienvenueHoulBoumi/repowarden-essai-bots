@@ -9,3 +9,8 @@ def add(a: float, b: float) -> float:
 def sub(a: float, b: float) -> float:
     """Différence de deux nombres."""
     return a - b
+
+
+def mul(a: float, b: float) -> float:
+    """Produit de deux nombres."""
+    return a * b
